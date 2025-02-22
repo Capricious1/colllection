@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>积分统计</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button.add-player {
+            background-color: #28a745;
+        }
+
+        button.add-player:hover {
+            background-color: #218838;
+        }
+
+        button.add-round {
+            background-color: #007bff;
+        }
+
+        button.add-round:hover {
+            background-color: #0056b3;
+        }
+
+        button.reset {
+            background-color: #dc3545;
+        }
+
+        button.reset:hover {
+            background-color: #c82333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            table-layout: fixed;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+            width: 80px;
+        }
+
+        th {
+            background-color: #f8f9fa;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 8px;
+            background-color: #f8f9fa;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+
+        .table-container {
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>积分统计</h1>
+        <div id="score-inputs">
+            <h2>输入每局积分</h2>
+            <div id="inputs"></div>
+            <div class="button-group">
+                <button class="add-round" onclick="addRound()">✅ 添加本局积分</button>
+            </div>
+            <div class="button-group">
+                <button class="add-player" onclick="addPlayer()">➕ 增加玩家</button>
+                <button class="reset" onclick="resetData()">🔄 重置</button>
+            </div>
+        </div>
+        <div id="results" style="display:none;">
+            <h2>总分</h2>
+            <ul id="total-scores"></ul>
+            <h2>积分记录</h2>
+            <div id="rounds-tables"></div>
+        </div>
+    </div>
+
+    <script>
+        let players = [];
+        let totalScores = {};
+        let rounds = [];
+
+        // 从 localStorage 加载数据
+        function loadData() {
+            const savedPlayers = localStorage.getItem('players');
+            const savedTotalScores = localStorage.getItem('totalScores');
+            const savedRounds = localStorage.getItem('rounds');
+
+            if (savedPlayers) players = JSON.parse(savedPlayers);
+            if (savedTotalScores) totalScores = JSON.parse(savedTotalScores);
+            if (savedRounds) rounds = JSON.parse(savedRounds);
+
+            updateInputs();
+            updateTables();
+            displayResults();
+        }
+
+        // 保存数据到 localStorage
+        function saveData() {
+            localStorage.setItem('players', JSON.stringify(players));
+            localStorage.setItem('totalScores', JSON.stringify(totalScores));
+            localStorage.setItem('rounds', JSON.stringify(rounds));
+        }
+
+        // 更新输入框
+        function updateInputs() {
+            const inputsContainer = document.getElementById('inputs');
+            inputsContainer.innerHTML = players.map((player, index) => `
+                <label for="player${index + 1}">${player}积分:</label>
+                <input type="number" id="score${index + 1}" class="score-input" value="0">
+            `).join('');
+        }
+
+        // 增加玩家
+        function addPlayer() {
+            const newPlayerName = prompt("请输入新增玩家的姓名：");
+            if (!newPlayerName) {
+                alert("玩家姓名不能为空");
+                return;
+            }
+
+            players.push(newPlayerName);
+            totalScores[newPlayerName] = 0;
+
+            updateInputs();
+            updateTables();
+            saveData();
+        }
+
+        // 添加一局积分
+        function addRound() {
+            if (players.length === 0) {
+                alert("请先添加玩家！");
+                return;
+            }
+
+            // 二次确认
+            const confirmAdd = confirm("确定要添加本局积分吗？");
+            if (!confirmAdd) return;
+
+            const roundScores = {};
+            let totalRoundScore = 0;
+
+            // 获取每局积分并计算总和
+            for (let i = 1; i <= players.length; i++) {
+                const playerName = players[i - 1];
+                const score = parseInt(document.getElementById(`score${i}`).value) || 0;
+                roundScores[playerName] = score;
+                totalRoundScore += score;
+            }
+
+            // 校验本局积分总和是否为0
+            if (totalRoundScore !== 0) {
+                alert("本局积分总和必须为0，请检查并重新输入！");
+                return;
+            }
+
+            // 更新总分
+            for (const [player, score] of Object.entries(roundScores)) {
+                totalScores[player] += score;
+            }
+
+            rounds.push(roundScores);
+            updateTables();
+            displayResults();
+            saveData();
+
+            // 清空积分输入框
+            clearInputs();
+        }
+
+        // 清空积分输入框
+        function clearInputs() {
+            for (let i = 1; i <= players.length; i++) {
+                document.getElementById(`score${i}`).value = 0;
+            }
+        }
+
+        // 更新积分记录表格
+        function updateTables() {
+            const tablesContainer = document.getElementById('rounds-tables');
+            tablesContainer.innerHTML = '';
+
+            const chunkSize = 5;
+            for (let i = 0; i < players.length; i += chunkSize) {
+                const chunkPlayers = players.slice(i, i + chunkSize);
+                const tableHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>局数</th>
+                                    ${chunkPlayers.map(player => `<th>${player}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rounds.map((round, index) => `
+                                    <tr>
+                                        <td>第${index + 1}局</td>
+                                        ${chunkPlayers.map(player => `<td>${round[player] || 0}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                tablesContainer.innerHTML += tableHTML;
+            }
+        }
+
+        // 显示总分
+        function displayResults() {
+            let resultsHTML = '';
+            for (const [player, score] of Object.entries(totalScores)) {
+                resultsHTML += `<li>${player}: ${score} 分</li>`;
+            }
+
+            document.getElementById('total-scores').innerHTML = resultsHTML;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        // 重置数据
+        function resetData() {
+            const confirmReset = confirm("确定要重置所有数据吗？此操作不可恢复！");
+            if (!confirmReset) return;
+
+            players = [];
+            totalScores = {};
+            rounds = [];
+            localStorage.clear();
+
+            updateInputs();
+            updateTables();
+            displayResults();
+        }
+
+        // 页面加载时加载数据
+        window.onload = loadData;
+    </script>
+</body>
+</html>
